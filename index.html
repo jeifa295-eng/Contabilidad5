@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contabilidad PRO</title>
+<title>Contabilidad UltraPro</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -20,8 +20,6 @@ body {
   margin: auto;
 }
 
-h1 { text-align: center; }
-
 input, button {
   width: 100%;
   padding: 12px;
@@ -30,10 +28,7 @@ input, button {
   border: none;
 }
 
-input {
-  background: #1e293b;
-  color: white;
-}
+input { background: #1e293b; color: white; }
 
 button {
   background: #22c55e;
@@ -47,14 +42,9 @@ button {
   border-radius: 10px;
 }
 
-.delete {
-  background: red;
-}
+.delete { background: red; }
 
-.secret {
-  background: #facc15;
-  color: black;
-}
+.secret { background: gold; color: black; }
 
 canvas {
   margin-top: 20px;
@@ -67,7 +57,7 @@ canvas {
 <body>
 
 <div class="container">
-  <h1>🔐 Contabilidad PRO</h1>
+  <h2>🔐 Ultra Contabilidad</h2>
 
   <input id="titulo" placeholder="Ej: Neki">
   <input id="valor" type="number" placeholder="Valor">
@@ -83,66 +73,71 @@ canvas {
 </div>
 
 <script>
-// 🔐 Codificación
+// 🔐 MAPA
 const mapa = {"0":"Z","1":"P","2":"Q","3":"R","4":"S","5":"T","6":"U","7":"V","8":"W","9":"X"};
-const mapaInv = Object.fromEntries(Object.entries(mapa).map(([k,v])=>[v,k]));
+const mapaInv = {"Z":"0","P":"1","Q":"2","R":"3","S":"4","T":"5","U":"6","V":"7","W":"8","X":"9"};
 
 function codificar(num){
-  return num.toString().split("").map(n=>mapa[n]).join("");
+  return num.toString().split("").map(n => mapa[n]).join("");
 }
 
 function decodificar(txt){
-  return parseInt(txt.split("").map(c=>mapaInv[c]).join(""));
+  return parseInt(txt.split("").map(c => mapaInv[c]).join(""));
 }
 
-// Guardar
-function guardar(){
-  const t = titulo.value;
-  const v = valor.value;
+// 🔒 estado
+let verReal = false;
+let chart = null;
 
-  if(!t || !v) return alert("Completa todo");
+// 💾 Guardar
+function guardar(){
+  const t = document.getElementById("titulo").value.trim();
+  const v = document.getElementById("valor").value;
+
+  if(!t || !v){
+    alert("Completa todo");
+    return;
+  }
 
   const data = JSON.parse(localStorage.getItem("data")) || [];
 
   data.push({
-    t,
+    t: t,
+    v: parseInt(v),
     c: codificar(v),
-    v: v,
-    f: new Date().toISOString()
+    f: Date.now()
   });
 
   localStorage.setItem("data", JSON.stringify(data));
 
-  titulo.value="";
-  valor.value="";
+  document.getElementById("titulo").value="";
+  document.getElementById("valor").value="";
 
   cargar();
 }
 
-// Cargar
-let verReal = false;
-
+// 📥 Cargar
 function cargar(){
   const lista = document.getElementById("lista");
-  lista.innerHTML="";
+  lista.innerHTML = "";
 
   const data = JSON.parse(localStorage.getItem("data")) || [];
 
   let total = 0;
 
   data.forEach((d,i)=>{
-    total += parseInt(d.v);
-
-    const div = document.createElement("div");
-    div.className="item";
+    total += d.v;
 
     const fecha = new Date(d.f).toLocaleDateString();
+
+    const div = document.createElement("div");
+    div.className = "item";
 
     div.innerHTML = `
       <strong>${d.t}</strong><br>
       📅 ${fecha}<br>
-      🔐 ${d.c}<br>
-      ${verReal ? "💵 "+d.v : ""}
+      🔐 ${d.c}
+      ${verReal ? `<br>💵 ${d.v}` : ""}
       <button class="delete" onclick="eliminar(${i})">Eliminar</button>
     `;
 
@@ -154,7 +149,7 @@ function cargar(){
   graficar(data);
 }
 
-// Eliminar
+// 🗑️ Eliminar
 function eliminar(i){
   const data = JSON.parse(localStorage.getItem("data")) || [];
   data.splice(i,1);
@@ -162,51 +157,49 @@ function eliminar(i){
   cargar();
 }
 
-// 🔑 Modo secreto
+// 🔑 Modo secreto mejorado
 function modoSecreto(){
   const pass = prompt("Clave:");
-  if(pass === "1234"){
+  if(pass === "4321"){
     verReal = !verReal;
     cargar();
   } else {
-    alert("Clave incorrecta");
+    alert("Incorrecto");
   }
 }
 
-// 📊 Gráfica por meses
-let chart;
-
+// 📊 Gráfica (ARREGLADA)
 function graficar(data){
-  const meses = {};
+  const meses = Array(12).fill(0);
 
   data.forEach(d=>{
-    const fecha = new Date(d.f);
-    const mes = fecha.getMonth()+1;
-
-    if(!meses[mes]) meses[mes]=0;
-
-    meses[mes] += parseInt(d.v);
+    const m = new Date(d.f).getMonth();
+    meses[m] += d.v;
   });
 
-  const labels = Object.keys(meses).map(m=>"Mes "+m);
-  const valores = Object.values(meses);
-
-  const ctx = document.getElementById("grafica");
+  const ctx = document.getElementById("grafica").getContext("2d");
 
   if(chart) chart.destroy();
 
   chart = new Chart(ctx, {
-    type: 'bar',
+    type: "bar",
     data: {
-      labels: labels,
+      labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
       datasets: [{
-        label: 'Dinero por mes',
-        data: valores
+        label: "Total mensual",
+        data: meses
       }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
     }
   });
 }
 
+// 🚀 iniciar
 cargar();
 </script>
 
