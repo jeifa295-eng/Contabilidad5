@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Vault Financiero</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+    font-family: Arial;
+    background:#020617;
+    color:white;
+    margin:0;
+}
+
+.container{
+    max-width:420px;
+    margin:auto;
+    padding:20px;
+}
+
+.card{
+    background:#0f172a;
+    padding:20px;
+    border-radius:12px;
+    margin-top:20px;
+}
+
+input,button{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:none;
+    border-radius:8px;
+}
+
+button{
+    background:#22c55e;
+    color:white;
+    font-weight:bold;
+}
+
+.delete{
+    background:#ef4444;
+}
+
+.toggle{
+    background:#3b82f6;
+}
+
+.hidden{display:none;}
+
+.registro{
+    background:#1e293b;
+    padding:10px;
+    margin-top:10px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- LOGIN -->
+<div id="login" class="card">
+<h2>🔐 Acceso Seguro</h2>
+<input type="password" id="pin" placeholder="PIN">
+<button onclick="login()">Entrar</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+<div class="card">
+<h2>💰 Vault Financiero</h2>
+<p>📅 <span id="fecha"></span></p>
+
+<input id="titulo" placeholder="Ej: Neki">
+<input id="valor" type="number" placeholder="Cantidad">
+
+<button onclick="guardar()">Guardar</button>
+<button class="toggle" onclick="toggle()">👁️ Mostrar/Ocultar</button>
+
+<h3>Total: <span id="total">****</span></h3>
+</div>
+
+<div id="lista"></div>
+
+<div class="card">
+<button onclick="exportar()">⬇️ Exportar datos</button>
+<button onclick="reset()">🗑️ Borrar todo</button>
+</div>
+
+</div>
+</div>
+
+<script>
+// CONFIG
+const PIN = "4321";
+let mostrar = false;
+
+// CODIGO
+const code = {
+"0":"Z","1":"P","2":"Q","3":"R","4":"S",
+"5":"T","6":"U","7":"V","8":"W","9":"X"
+};
+
+function codificar(n){
+return n.toString().split("").map(x=>code[x]).join("");
+}
+
+// LOGIN
+function login(){
+let p = document.getElementById("pin").value;
+if(p===PIN){
+document.getElementById("login").style.display="none";
+document.getElementById("app").classList.remove("hidden");
+cargar();
+}else alert("PIN incorrecto");
+}
+
+// FECHA
+document.getElementById("fecha").innerText=new Date().toLocaleDateString();
+
+// GUARDAR
+function guardar(){
+let t=document.getElementById("titulo").value;
+let v=document.getElementById("valor").value;
+
+if(!t||!v)return alert("Completa todo");
+
+let datos=JSON.parse(localStorage.getItem("vault"))||[];
+
+datos.push({
+t,
+v:parseFloat(v),
+c:codificar(v)
+});
+
+localStorage.setItem("vault",JSON.stringify(datos));
+
+document.getElementById("titulo").value="";
+document.getElementById("valor").value="";
+
+cargar();
+}
+
+// CARGAR
+function cargar(){
+let datos=JSON.parse(localStorage.getItem("vault"))||[];
+let lista=document.getElementById("lista");
+lista.innerHTML="";
+
+let total=0;
+
+datos.forEach((d,i)=>{
+total+=d.v;
+
+let div=document.createElement("div");
+div.className="registro";
+
+div.innerHTML=`
+<strong>${d.t}</strong><br>
+🔐 ${d.c}<br>
+💵 ${mostrar ? d.v : "****"}
+<button class="delete" onclick="del(${i})">Eliminar</button>
+`;
+
+lista.appendChild(div);
+});
+
+document.getElementById("total").innerText = mostrar ? total : "****";
+}
+
+// ELIMINAR
+function del(i){
+let datos=JSON.parse(localStorage.getItem("vault"));
+datos.splice(i,1);
+localStorage.setItem("vault",JSON.stringify(datos));
+cargar();
+}
+
+// TOGGLE
+function toggle(){
+mostrar=!mostrar;
+cargar();
+}
+
+// EXPORTAR
+function exportar(){
+let data=localStorage.getItem("vault");
+let blob=new Blob([data],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="datos.json";
+a.click();
+}
+
+// RESET
+function reset(){
+if(confirm("¿Borrar todo?")){
+localStorage.removeItem("vault");
+cargar();
+}
+}
+</script>
+
+</body>
+</html>
