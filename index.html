@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contabilidad Privada</title>
+<title>Contabilidad PRO</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
-  font-family: Arial, sans-serif;
+  font-family: Arial;
   background: #0f172a;
   color: white;
-  padding: 20px;
-}
-
-h1 {
-  text-align: center;
+  padding: 15px;
 }
 
 .container {
   max-width: 500px;
   margin: auto;
 }
+
+h1 { text-align: center; }
 
 input, button {
   width: 100%;
@@ -37,21 +37,29 @@ input {
 
 button {
   background: #22c55e;
-  color: black;
   font-weight: bold;
-  cursor: pointer;
 }
 
 .item {
   background: #1e293b;
-  padding: 15px;
+  padding: 12px;
   margin-top: 10px;
   border-radius: 10px;
 }
 
 .delete {
   background: red;
-  margin-top: 10px;
+}
+
+.secret {
+  background: #facc15;
+  color: black;
+}
+
+canvas {
+  margin-top: 20px;
+  background: white;
+  border-radius: 10px;
 }
 </style>
 </head>
@@ -59,79 +67,146 @@ button {
 <body>
 
 <div class="container">
-  <h1>🔐 Mi Contabilidad</h1>
+  <h1>🔐 Contabilidad PRO</h1>
 
-  <input type="text" id="titulo" placeholder="Ej: Neki">
-  <input type="number" id="valor" placeholder="Valor">
+  <input id="titulo" placeholder="Ej: Neki">
+  <input id="valor" type="number" placeholder="Valor">
 
   <button onclick="guardar()">Guardar</button>
+  <button class="secret" onclick="modoSecreto()">Modo secreto</button>
+
+  <h3>Total: <span id="total">----</span></h3>
 
   <div id="lista"></div>
+
+  <canvas id="grafica"></canvas>
 </div>
 
 <script>
-// 🔐 Codificación personalizada
-function codificar(num) {
-  const mapa = {
-    "0":"Z","1":"P","2":"Q","3":"R","4":"S",
-    "5":"T","6":"U","7":"V","8":"W","9":"X"
-  };
+// 🔐 Codificación
+const mapa = {"0":"Z","1":"P","2":"Q","3":"R","4":"S","5":"T","6":"U","7":"V","8":"W","9":"X"};
+const mapaInv = Object.fromEntries(Object.entries(mapa).map(([k,v])=>[v,k]));
 
-  return num.toString().split("").map(n => mapa[n]).join("");
+function codificar(num){
+  return num.toString().split("").map(n=>mapa[n]).join("");
 }
 
-// Guardar datos
-function guardar() {
-  const t = document.getElementById("titulo").value;
-  const v = document.getElementById("valor").value;
+function decodificar(txt){
+  return parseInt(txt.split("").map(c=>mapaInv[c]).join(""));
+}
 
-  if (!t || !v) return alert("Completa todo");
+// Guardar
+function guardar(){
+  const t = titulo.value;
+  const v = valor.value;
+
+  if(!t || !v) return alert("Completa todo");
 
   const data = JSON.parse(localStorage.getItem("data")) || [];
 
   data.push({
-    t: t,
-    c: codificar(v) // SOLO guardamos el código visible
+    t,
+    c: codificar(v),
+    v: v,
+    f: new Date().toISOString()
   });
 
   localStorage.setItem("data", JSON.stringify(data));
 
-  document.getElementById("titulo").value = "";
-  document.getElementById("valor").value = "";
+  titulo.value="";
+  valor.value="";
 
   cargar();
 }
 
-// Cargar lista
-function cargar() {
+// Cargar
+let verReal = false;
+
+function cargar(){
   const lista = document.getElementById("lista");
-  lista.innerHTML = "";
+  lista.innerHTML="";
 
   const data = JSON.parse(localStorage.getItem("data")) || [];
 
-  data.forEach((d, i) => {
+  let total = 0;
+
+  data.forEach((d,i)=>{
+    total += parseInt(d.v);
+
     const div = document.createElement("div");
-    div.className = "item";
+    div.className="item";
+
+    const fecha = new Date(d.f).toLocaleDateString();
 
     div.innerHTML = `
       <strong>${d.t}</strong><br>
-      🔐 ${d.c}
+      📅 ${fecha}<br>
+      🔐 ${d.c}<br>
+      ${verReal ? "💵 "+d.v : ""}
       <button class="delete" onclick="eliminar(${i})">Eliminar</button>
     `;
 
     lista.appendChild(div);
   });
+
+  document.getElementById("total").innerText = verReal ? total : codificar(total);
+
+  graficar(data);
 }
 
 // Eliminar
-function eliminar(i) {
+function eliminar(i){
   const data = JSON.parse(localStorage.getItem("data")) || [];
-  data.splice(i, 1);
+  data.splice(i,1);
   localStorage.setItem("data", JSON.stringify(data));
   cargar();
 }
 
-// Iniciar
+// 🔑 Modo secreto
+function modoSecreto(){
+  const pass = prompt("Clave:");
+  if(pass === "1234"){
+    verReal = !verReal;
+    cargar();
+  } else {
+    alert("Clave incorrecta");
+  }
+}
+
+// 📊 Gráfica por meses
+let chart;
+
+function graficar(data){
+  const meses = {};
+
+  data.forEach(d=>{
+    const fecha = new Date(d.f);
+    const mes = fecha.getMonth()+1;
+
+    if(!meses[mes]) meses[mes]=0;
+
+    meses[mes] += parseInt(d.v);
+  });
+
+  const labels = Object.keys(meses).map(m=>"Mes "+m);
+  const valores = Object.values(meses);
+
+  const ctx = document.getElementById("grafica");
+
+  if(chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Dinero por mes',
+        data: valores
+      }]
+    }
+  });
+}
+
 cargar();
 </script>
 
