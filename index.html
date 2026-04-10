@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ContaApp</title>
+<title>ContaApp Cloud</title>
 
 <style>
 body{margin:0;font-family:-apple-system;background:#f2f2f7}
@@ -11,7 +11,7 @@ body{margin:0;font-family:-apple-system;background:#f2f2f7}
 .card{background:#fff;margin:10px;border-radius:15px;padding:15px}
 button{border:none;background:#007aff;color:#fff;padding:6px 10px;border-radius:8px;margin:2px}
 input{padding:6px;border-radius:8px;border:1px solid #ccc;margin:5px;width:90%}
-.bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#fff}
+.bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#fff;border-top:1px solid #ccc}
 .bottom-nav button{flex:1;background:none;color:#007aff;padding:15px}
 .hidden{display:none}
 .big{font-size:24px;font-weight:bold}
@@ -20,7 +20,7 @@ input{padding:6px;border-radius:8px;border:1px solid #ccc;margin:5px;width:90%}
 
 <body>
 
-<div class="header">💰 ContaApp</div>
+<div class="header">☁️ ContaApp Cloud</div>
 
 <div id="home">
   <div class="card">
@@ -52,71 +52,110 @@ input{padding:6px;border-radius:8px;border:1px solid #ccc;margin:5px;width:90%}
   <button onclick="nav('gastos')">💸</button>
 </div>
 
-<script>
+<!-- FIREBASE -->
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyAvSqCwRrpYz58EksurH-L0P1ny_FmYWq8",
+    authDomain: "contabilidad-31cc1.firebaseapp.com",
+    projectId: "contabilidad-31cc1",
+    storageBucket: "contabilidad-31cc1.firebasestorage.app",
+    messagingSenderId: "286247305253",
+    appId: "1:286247305253:web:264fb563aa930478573fcc"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+const dbCloud = getFirestore(app);
 
 // 💰 FORMATO COP
 function formatCOP(num){
   return '$ ' + num.toLocaleString('es-CO');
 }
 
+// 📦 BASE LOCAL
 let db = JSON.parse(localStorage.getItem('db3')) || {cats:[], gastos:[]};
 
-function save(){
+// 💾 GUARDAR LOCAL + NUBE
+async function save(){
   localStorage.setItem('db3', JSON.stringify(db));
+
+  await setDoc(doc(dbCloud, "users", "user1"), {
+    data: db
+  });
 }
 
-function nav(x){
+// ☁️ CARGAR DESDE NUBE
+async function loadCloud(){
+  try{
+    const ref = doc(dbCloud, "users", "user1");
+    const snap = await getDoc(ref);
+
+    if(snap.exists()){
+      db = snap.data().data;
+      localStorage.setItem('db3', JSON.stringify(db));
+    }
+  }catch(e){
+    console.log("Error nube:", e);
+  }
+}
+
+// 🧭 NAVEGACIÓN
+window.nav = function(x){
   document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
   document.getElementById(x).classList.remove('hidden');
 }
 
-// ➕ CATEGORÍA CON VALOR
-function addCategory(){
+// ➕ CATEGORÍA
+window.addCategory = function(){
   let n = document.getElementById('catName').value;
   let v = parseFloat(document.getElementById('catValor').value) || 0;
 
   if(!n) return;
 
-  db.cats.push({
-    name:n,
-    value:v,
-    subs:[],
-    open:false
-  });
+  db.cats.push({name:n,value:v,subs:[],open:false});
 
   document.getElementById('catName').value='';
   document.getElementById('catValor').value='';
+
   save(); render();
 }
 
-// ➕ SUBCATEGORÍA
-function addSub(i){
+// ➕ SUB
+window.addSub = function(i){
   let n = prompt('Nombre');
   let v = parseFloat(prompt('Valor'));
-
   if(!n || isNaN(v)) return;
 
-  db.cats[i].subs.push({name:n, value:v});
+  db.cats[i].subs.push({name:n,value:v});
   save(); render();
 }
 
-function toggle(i){
-  db.cats[i].open = !db.cats[i].open;
+// 🔽 ACORDEÓN
+window.toggle = function(i){
+  db.cats[i].open=!db.cats[i].open;
   render();
 }
 
-function delCat(i){
+// ❌ BORRAR
+window.delCat = function(i){
   db.cats.splice(i,1);
   save(); render();
 }
 
-function delSub(i,j){
+window.delSub = function(i,j){
   db.cats[i].subs.splice(j,1);
   save(); render();
 }
 
 // 💸 GASTOS
-function addGasto(){
+window.addGasto = function(){
   let n = document.getElementById('gNombre').value;
   let v = parseFloat(document.getElementById('gValor').value);
 
@@ -126,15 +165,16 @@ function addGasto(){
 
   document.getElementById('gNombre').value='';
   document.getElementById('gValor').value='';
+
   save(); render();
 }
 
-function delGasto(i){
+window.delGasto = function(i){
   db.gastos.splice(i,1);
   save(); render();
 }
 
-// 🎯 RENDER CORREGIDO
+// 🎯 RENDER
 function render(){
   let total = 0;
   let cont = document.getElementById('categories');
@@ -145,7 +185,7 @@ function render(){
     let sumSubs = 0;
     c.subs.forEach(s => sumSubs += s.value);
 
-    let totalCat = c.value + sumSubs; // 🔥 AQUÍ ESTÁ LA MAGIA
+    let totalCat = c.value + sumSubs;
     total += totalCat;
 
     let div = document.createElement('div');
@@ -166,8 +206,7 @@ function render(){
     let ul = document.createElement('ul');
     ul.className = c.open ? '' : 'hidden';
 
-    // Mostrar valor base de categoría
-    if(c.value > 0){
+    if(c.value>0){
       let base = document.createElement('li');
       base.textContent = `Base: ${formatCOP(c.value)}`;
       ul.appendChild(base);
@@ -214,7 +253,8 @@ function render(){
   document.getElementById('total').textContent = formatCOP(total - tg);
 }
 
-render();
+// 🚀 INICIO
+loadCloud().then(render);
 
 </script>
 
