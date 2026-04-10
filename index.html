@@ -3,204 +3,219 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contabilidad UltraPro</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>ContaApp</title>
 
 <style>
-body {
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
-  padding: 15px;
-}
-
-.container {
-  max-width: 500px;
-  margin: auto;
-}
-
-input, button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 10px;
-  border: none;
-}
-
-input { background: #1e293b; color: white; }
-
-button {
-  background: #22c55e;
-  font-weight: bold;
-}
-
-.item {
-  background: #1e293b;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 10px;
-}
-
-.delete { background: red; }
-
-.secret { background: gold; color: black; }
-
-canvas {
-  margin-top: 20px;
-  background: white;
-  border-radius: 10px;
-}
+body{margin:0;font-family:-apple-system;background:#f2f2f7}
+.header{padding:20px;text-align:center;font-size:22px;font-weight:bold}
+.card{background:#fff;margin:10px;border-radius:15px;padding:15px}
+button{border:none;background:#007aff;color:#fff;padding:6px 10px;border-radius:8px;margin:2px}
+input{padding:6px;border-radius:8px;border:1px solid #ccc;margin:5px;width:90%}
+.bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#fff}
+.bottom-nav button{flex:1;background:none;color:#007aff;padding:15px}
+.hidden{display:none}
+.big{font-size:24px;font-weight:bold}
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h2>🔐 Ultra Contabilidad</h2>
+<div class="header">💰 ContaApp</div>
 
-  <input id="titulo" placeholder="Ej: Neki">
-  <input id="valor" type="number" placeholder="Valor">
+<div id="home">
+  <div class="card">
+    <div class="big">Total: <span id="total">0</span></div>
+  </div>
+</div>
 
-  <button onclick="guardar()">Guardar</button>
-  <button class="secret" onclick="modoSecreto()">Modo secreto</button>
+<div id="cats" class="hidden">
+  <div class="card">
+    <input id="catName" placeholder="Nombre categoría">
+    <input id="catValor" type="number" placeholder="Valor opcional">
+    <button onclick="addCategory()">Agregar</button>
+  </div>
+  <div id="categories"></div>
+</div>
 
-  <h3>Total: <span id="total">----</span></h3>
+<div id="gastos" class="hidden">
+  <div class="card">
+    <input id="gNombre" placeholder="Gasto">
+    <input id="gValor" type="number" placeholder="Valor">
+    <button onclick="addGasto()">Agregar</button>
+  </div>
+  <ul id="gList"></ul>
+</div>
 
-  <div id="lista"></div>
-
-  <canvas id="grafica"></canvas>
+<div class="bottom-nav">
+  <button onclick="nav('home')">🏠</button>
+  <button onclick="nav('cats')">📂</button>
+  <button onclick="nav('gastos')">💸</button>
 </div>
 
 <script>
-// 🔐 MAPA
-const mapa = {"0":"Z","1":"P","2":"Q","3":"R","4":"S","5":"T","6":"U","7":"V","8":"W","9":"X"};
-const mapaInv = {"Z":"0","P":"1","Q":"2","R":"3","S":"4","T":"5","U":"6","V":"7","W":"8","X":"9"};
 
-function codificar(num){
-  return num.toString().split("").map(n => mapa[n]).join("");
+// 💰 FORMATO COP
+function formatCOP(num){
+  return '$ ' + num.toLocaleString('es-CO');
 }
 
-function decodificar(txt){
-  return parseInt(txt.split("").map(c => mapaInv[c]).join(""));
+let db = JSON.parse(localStorage.getItem('db3')) || {cats:[], gastos:[]};
+
+function save(){
+  localStorage.setItem('db3', JSON.stringify(db));
 }
 
-// 🔒 estado
-let verReal = false;
-let chart = null;
+function nav(x){
+  document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
+  document.getElementById(x).classList.remove('hidden');
+}
 
-// 💾 Guardar
-function guardar(){
-  const t = document.getElementById("titulo").value.trim();
-  const v = document.getElementById("valor").value;
+// ➕ CATEGORÍA CON VALOR
+function addCategory(){
+  let n = document.getElementById('catName').value;
+  let v = parseFloat(document.getElementById('catValor').value) || 0;
 
-  if(!t || !v){
-    alert("Completa todo");
-    return;
-  }
+  if(!n) return;
 
-  const data = JSON.parse(localStorage.getItem("data")) || [];
-
-  data.push({
-    t: t,
-    v: parseInt(v),
-    c: codificar(v),
-    f: Date.now()
+  db.cats.push({
+    name:n,
+    value:v,
+    subs:[],
+    open:false
   });
 
-  localStorage.setItem("data", JSON.stringify(data));
-
-  document.getElementById("titulo").value="";
-  document.getElementById("valor").value="";
-
-  cargar();
+  document.getElementById('catName').value='';
+  document.getElementById('catValor').value='';
+  save(); render();
 }
 
-// 📥 Cargar
-function cargar(){
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
+// ➕ SUBCATEGORÍA
+function addSub(i){
+  let n = prompt('Nombre');
+  let v = parseFloat(prompt('Valor'));
 
-  const data = JSON.parse(localStorage.getItem("data")) || [];
+  if(!n || isNaN(v)) return;
 
+  db.cats[i].subs.push({name:n, value:v});
+  save(); render();
+}
+
+function toggle(i){
+  db.cats[i].open = !db.cats[i].open;
+  render();
+}
+
+function delCat(i){
+  db.cats.splice(i,1);
+  save(); render();
+}
+
+function delSub(i,j){
+  db.cats[i].subs.splice(j,1);
+  save(); render();
+}
+
+// 💸 GASTOS
+function addGasto(){
+  let n = document.getElementById('gNombre').value;
+  let v = parseFloat(document.getElementById('gValor').value);
+
+  if(!n || isNaN(v)) return;
+
+  db.gastos.push({n,v});
+
+  document.getElementById('gNombre').value='';
+  document.getElementById('gValor').value='';
+  save(); render();
+}
+
+function delGasto(i){
+  db.gastos.splice(i,1);
+  save(); render();
+}
+
+// 🎯 RENDER CORREGIDO
+function render(){
   let total = 0;
+  let cont = document.getElementById('categories');
+  cont.innerHTML='';
 
-  data.forEach((d,i)=>{
-    total += d.v;
+  db.cats.forEach((c,i)=>{
 
-    const fecha = new Date(d.f).toLocaleDateString();
+    let sumSubs = 0;
+    c.subs.forEach(s => sumSubs += s.value);
 
-    const div = document.createElement("div");
-    div.className = "item";
+    let totalCat = c.value + sumSubs; // 🔥 AQUÍ ESTÁ LA MAGIA
+    total += totalCat;
 
-    div.innerHTML = `
-      <strong>${d.t}</strong><br>
-      📅 ${fecha}<br>
-      🔐 ${d.c}
-      ${verReal ? `<br>💵 ${d.v}` : ""}
-      <button class="delete" onclick="eliminar(${i})">Eliminar</button>
-    `;
+    let div = document.createElement('div');
+    div.className='card';
 
-    lista.appendChild(div);
-  });
+    let h = document.createElement('h3');
+    h.textContent = `${c.name} (${formatCOP(totalCat)})`;
+    h.onclick = ()=>toggle(i);
 
-  document.getElementById("total").innerText = verReal ? total : codificar(total);
+    let b1 = document.createElement('button');
+    b1.textContent='+';
+    b1.onclick=()=>addSub(i);
 
-  graficar(data);
-}
+    let b2 = document.createElement('button');
+    b2.textContent='🗑';
+    b2.onclick=()=>delCat(i);
 
-// 🗑️ Eliminar
-function eliminar(i){
-  const data = JSON.parse(localStorage.getItem("data")) || [];
-  data.splice(i,1);
-  localStorage.setItem("data", JSON.stringify(data));
-  cargar();
-}
+    let ul = document.createElement('ul');
+    ul.className = c.open ? '' : 'hidden';
 
-// 🔑 Modo secreto mejorado
-function modoSecreto(){
-  const pass = prompt("Clave:");
-  if(pass === "4321"){
-    verReal = !verReal;
-    cargar();
-  } else {
-    alert("Incorrecto");
-  }
-}
-
-// 📊 Gráfica (ARREGLADA)
-function graficar(data){
-  const meses = Array(12).fill(0);
-
-  data.forEach(d=>{
-    const m = new Date(d.f).getMonth();
-    meses[m] += d.v;
-  });
-
-  const ctx = document.getElementById("grafica").getContext("2d");
-
-  if(chart) chart.destroy();
-
-  chart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
-      datasets: [{
-        label: "Total mensual",
-        data: meses
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false }
-      }
+    // Mostrar valor base de categoría
+    if(c.value > 0){
+      let base = document.createElement('li');
+      base.textContent = `Base: ${formatCOP(c.value)}`;
+      ul.appendChild(base);
     }
+
+    c.subs.forEach((s,j)=>{
+      let li = document.createElement('li');
+      li.textContent = `${s.name}: ${formatCOP(s.value)}`;
+
+      let d = document.createElement('button');
+      d.textContent='❌';
+      d.onclick=()=>delSub(i,j);
+
+      li.appendChild(d);
+      ul.appendChild(li);
+    });
+
+    div.appendChild(h);
+    div.appendChild(b1);
+    div.appendChild(b2);
+    div.appendChild(ul);
+
+    cont.appendChild(div);
   });
+
+  let gList = document.getElementById('gList');
+  gList.innerHTML='';
+  let tg = 0;
+
+  db.gastos.forEach((g,i)=>{
+    tg += g.v;
+
+    let li = document.createElement('li');
+    li.textContent = `${g.n}: ${formatCOP(g.v)}`;
+
+    let d = document.createElement('button');
+    d.textContent='❌';
+    d.onclick=()=>delGasto(i);
+
+    li.appendChild(d);
+    gList.appendChild(li);
+  });
+
+  document.getElementById('total').textContent = formatCOP(total - tg);
 }
 
-// 🚀 iniciar
-cargar();
+render();
+
 </script>
 
 </body>
