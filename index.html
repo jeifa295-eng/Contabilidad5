@@ -13,6 +13,7 @@ body{margin:0;font-family:-apple-system;background:#0f172a;color:white}
 .card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
 button{padding:10px;border:none;border-radius:10px;margin:5px;cursor:pointer}
 .add{background:#22c55e}
+.delete{background:#ef4444}
 input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;background:#334155;color:white}
 .hidden{display:none}
 .bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#020617}
@@ -91,7 +92,7 @@ const errorBox=document.getElementById('error');
 const totalEl=document.getElementById('total');
 
 // LOGIN
-document.getElementById("btnLogin").addEventListener("pointerup", async ()=>{
+btnLogin.addEventListener("pointerup", async ()=>{
  try{
   let res=await signInWithEmailAndPassword(auth,email.value,pass.value);
   userId=res.user.uid;
@@ -99,7 +100,7 @@ document.getElementById("btnLogin").addEventListener("pointerup", async ()=>{
 });
 
 // REGISTER
-document.getElementById("btnRegister").addEventListener("pointerup", async ()=>{
+btnRegister.addEventListener("pointerup", async ()=>{
  try{
   let res=await createUserWithEmailAndPassword(auth,email.value,pass.value);
   userId=res.user.uid;
@@ -110,8 +111,8 @@ document.getElementById("btnRegister").addEventListener("pointerup", async ()=>{
 onAuthStateChanged(auth, async user=>{
  if(user){
   userId=user.uid;
-  document.getElementById("login").style.display="none";
-  document.getElementById("mainApp").classList.remove("hidden");
+  login.style.display="none";
+  mainApp.classList.remove("hidden");
 
   let snap=await getDoc(doc(dbCloud,"users",userId));
   if(snap.exists()) db=snap.data().data;
@@ -128,26 +129,29 @@ document.querySelectorAll("[data-nav]").forEach(btn=>{
  });
 });
 
-// ADD CAT
-document.getElementById("btnAddCat").addEventListener("pointerup",()=>{
+// FORMATO
+function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
+
+// GUARDAR
+async function save(){
+ await setDoc(doc(dbCloud,"users",userId),{data:db});
+}
+
+// ➕ CATEGORIA
+btnAddCat.addEventListener("pointerup",()=>{
  db.cats.push({name:catName.value,value:+catValor.value||0,subs:[],open:false});
  catName.value='';catValor.value='';
  save();render();
 });
 
-// ADD GASTO
-document.getElementById("btnAddGasto").addEventListener("pointerup",()=>{
+// ➕ GASTO
+btnAddGasto.addEventListener("pointerup",()=>{
  db.gastos.push({n:gNombre.value,v:+gValor.value});
  gNombre.value='';gValor.value='';
  save();render();
 });
 
-function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
-
-async function save(){
- await setDoc(doc(dbCloud,"users",userId),{data:db});
-}
-
+// RENDER
 function render(){
  categories.innerHTML='';
  let total=0;
@@ -163,39 +167,78 @@ function render(){
   let h=document.createElement('h3');
   h.textContent=`${c.name} (${format(sum)})`;
 
-  let btn=document.createElement('button');
-  btn.textContent=c.open?"🔼":"🔽";
-
-  btn.addEventListener("pointerup",()=>{
-   c.open=!c.open;
-   render();
+  let toggle=document.createElement('button');
+  toggle.textContent=c.open?"🔼":"🔽";
+  toggle.addEventListener("pointerup",()=>{
+    c.open=!c.open; render();
   });
 
   let add=document.createElement('button');
   add.textContent='➕';
   add.className='add';
-
   add.addEventListener("pointerup",()=>{
-   let n=prompt("Nombre");
-   let v=+prompt("Valor");
-   if(!n||isNaN(v))return;
-   c.subs.push({name:n,value:v});
-   save();render();
+    let n=prompt("Nombre");
+    let v=+prompt("Valor");
+    if(!n||isNaN(v))return;
+    c.subs.push({name:n,value:v});
+    save();render();
+  });
+
+  let delCat=document.createElement('button');
+  delCat.textContent='🗑';
+  delCat.className='delete';
+  delCat.addEventListener("pointerup",()=>{
+    if(confirm("Eliminar categoría?")){
+      db.cats.splice(i,1);
+      save();render();
+    }
   });
 
   let ul=document.createElement('ul');
   ul.style.display=c.open?"block":"none";
 
-  c.subs.forEach(s=>{
-   let li=document.createElement('li');
-   li.textContent=`${s.name}: ${format(s.value)}`;
-   ul.appendChild(li);
+  c.subs.forEach((s,j)=>{
+    let li=document.createElement('li');
+    li.textContent=`${s.name}: ${format(s.value)}`;
+
+    let delSub=document.createElement('button');
+    delSub.textContent='❌';
+    delSub.className='delete';
+    delSub.addEventListener("pointerup",()=>{
+      c.subs.splice(j,1);
+      save();render();
+    });
+
+    li.appendChild(delSub);
+    ul.appendChild(li);
   });
 
-  div.append(h,btn,add,ul);
+  div.append(h,toggle,add,delCat,ul);
   categories.appendChild(div);
  });
 
+ // GASTOS
+ let tg=0;
+ gList.innerHTML='';
+ db.gastos.forEach((g,i)=>{
+  tg+=g.v;
+
+  let li=document.createElement('li');
+  li.textContent=`${g.n}: ${format(g.v)}`;
+
+  let del=document.createElement('button');
+  del.textContent='❌';
+  del.className='delete';
+  del.addEventListener("pointerup",()=>{
+    db.gastos.splice(i,1);
+    save();render();
+  });
+
+  li.appendChild(del);
+  gList.appendChild(li);
+ });
+
+ total-=tg;
  totalEl.textContent=format(total);
 }
 
