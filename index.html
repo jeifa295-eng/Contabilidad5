@@ -152,6 +152,15 @@ document.querySelectorAll("[data-nav]").forEach(btn=>{
 // FORMATO
 function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
 
+// 🔐 ENCRIPTAR
+function encriptarNumero(num){
+ let mapa={
+  "1":"P","2":"Q","3":"R","4":"S","5":"T",
+  "6":"U","7":"V","8":"W","9":"X","0":"Z"
+ };
+ return num.toString().split('').map(c=>mapa[c]||c).join('');
+}
+
 // GUARDAR
 async function save(){
  await setDoc(doc(dbCloud,"users",userId),{data:db});
@@ -171,18 +180,18 @@ btnAddGasto.addEventListener("pointerup",()=>{
  save();render();
 });
 
-// 📲 WHATSAPP
+// 📲 WHATSAPP ENCRIPTADO
 window.enviarWhatsApp=function(){
- let texto="📊 *Resumen ContaApp*\n\n";
+ let texto="📊 *Resumen ContaApp (Encriptado)*\n\n";
 
  db.cats.forEach(c=>{
   let sum=c.value||0;
   c.subs.forEach(s=>sum+=s.value);
 
-  texto+=`💼 ${c.name}: ${format(sum)}\n`;
+  texto+=`💼 ${c.name}: ${encriptarNumero(sum.toLocaleString('es-CO'))}\n`;
 
   c.subs.forEach(s=>{
-    texto+=`   - ${s.name}: ${format(s.value)}\n`;
+    texto+=`   - ${s.name}: ${encriptarNumero(s.value.toLocaleString('es-CO'))}\n`;
   });
 
   texto+="\n";
@@ -191,7 +200,7 @@ window.enviarWhatsApp=function(){
  let tg=0;
  db.gastos.forEach(g=>tg+=g.v);
 
- texto+=`💸 Gastos: ${format(tg)}\n`;
+ texto+=`💸 Gastos: ${encriptarNumero(tg.toLocaleString('es-CO'))}\n`;
 
  let totalFinal=0;
  db.cats.forEach(c=>{
@@ -202,12 +211,10 @@ window.enviarWhatsApp=function(){
 
  totalFinal-=tg;
 
- texto+=`\n💰 TOTAL: ${format(totalFinal)}`;
+ texto+=`\n💰 TOTAL: ${encriptarNumero(totalFinal.toLocaleString('es-CO'))}`;
 
  let numero="573127822485";
-
  let url=`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
-
  window.open(url,"_blank");
 }
 
@@ -215,11 +222,15 @@ window.enviarWhatsApp=function(){
 function render(){
  categories.innerHTML='';
  let total=0;
+ let labels=[],data=[];
 
  db.cats.forEach((c,i)=>{
   let sum=c.value||0;
   c.subs.forEach(s=>sum+=s.value);
   total+=sum;
+
+  labels.push(c.name);
+  data.push(sum);
 
   let div=document.createElement('div');
   div.className='card';
@@ -299,7 +310,15 @@ function render(){
 
  total-=tg;
  totalEl.textContent=format(total);
+
+ if(chart) chart.destroy();
+ chart=new Chart(document.getElementById('chart'),{
+  type:'doughnut',
+  data:{labels:labels,datasets:[{data:data}]}
+ });
 }
+
+let chart;
 
 </script>
 
