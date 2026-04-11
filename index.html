@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ContaApp Empresa PRO</title>
+<title>ContaApp PRO</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -12,13 +12,13 @@ body{margin:0;font-family:-apple-system;background:#0f172a;color:white}
 .header{padding:20px;text-align:center;background:#1e3a8a}
 .card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
 button{padding:8px;border:none;border-radius:10px;margin:5px;cursor:pointer}
-.add{background:#22c55e}.delete{background:#ef4444}.edit{background:#f59e0b}
+.add{background:#22c55e}.delete{background:#ef4444}
 input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;background:#334155;color:white}
 .hidden{display:none}
 .bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#020617}
 .bottom-nav button{flex:1;background:none;color:#94a3b8;padding:15px}
 .big{font-size:28px;color:#22c55e}
-.error{color:#ef4444;margin-top:5px}
+.error{color:#ef4444}
 </style>
 </head>
 
@@ -38,7 +38,7 @@ input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;backgroun
 </div>
 
 <!-- APP -->
-<div id="app" class="hidden">
+<div id="mainApp" class="hidden">
 
 <div id="home">
 <div class="card"><div id="total" class="big">$0</div></div>
@@ -64,7 +64,7 @@ input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;backgroun
 </div>
 
 <div class="card">
-<button onclick="exportCSV()">📥 Exportar CSV</button>
+<button onclick="exportCSV()">📥 Exportar</button>
 <button onclick="logout()">Cerrar sesión</button>
 </div>
 
@@ -82,20 +82,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+// 🔥 CONFIG
 const firebaseConfig={
  apiKey:"AIzaSyAvSqCwRrpYz58EksurH-L0P1ny_FmYWq8",
  authDomain:"contabilidad-31cc1.firebaseapp.com",
  projectId:"contabilidad-31cc1"
 };
 
-const app=initializeApp(firebaseConfig);
-const dbCloud=getFirestore(app);
-const auth=getAuth(app);
+// 🔥 INIT
+const firebaseApp = initializeApp(firebaseConfig);
+const dbCloud = getFirestore(firebaseApp);
+const auth = getAuth(firebaseApp);
 
+// 🔥 VARIABLES
 let userId=null;
 let db={cats:[],gastos:[]};
 
 const errorBox=document.getElementById('error');
+const totalEl=document.getElementById('total');
 
 // 🔐 LOGIN
 window.loginUser=async()=>{
@@ -103,54 +107,56 @@ window.loginUser=async()=>{
   errorBox.textContent="";
   let e=email.value.trim();
   let p=pass.value.trim();
-
-  if(!e || !p) throw new Error("Completa los campos");
+  if(!e||!p) throw new Error("Completa los campos");
 
   let res=await signInWithEmailAndPassword(auth,e,p);
   userId=res.user.uid;
-  start();
+
  }catch(err){
-  errorBox.textContent="Error: "+err.message;
+  errorBox.textContent=err.message;
  }
 }
 
-// 🆕 REGISTRO
+// 🆕 REGISTER
 window.registerUser=async()=>{
  try{
   errorBox.textContent="";
   let e=email.value.trim();
   let p=pass.value.trim();
-
   if(p.length<6) throw new Error("Mínimo 6 caracteres");
 
   let res=await createUserWithEmailAndPassword(auth,e,p);
   userId=res.user.uid;
-  start();
+
  }catch(err){
-  errorBox.textContent="Error: "+err.message;
+  errorBox.textContent=err.message;
  }
 }
 
 // 🔁 AUTO LOGIN
-onAuthStateChanged(auth, user=>{
+onAuthStateChanged(auth, async (user)=>{
  if(user){
   userId=user.uid;
-  start();
+  await startApp();
  }
 });
 
-// 🚀 INICIAR APP
-async function start(){
- login.style.display="none";
- app.classList.remove("hidden");
+// 🚀 START
+async function startApp(){
+ document.getElementById("login").style.display="none";
+ document.getElementById("mainApp").classList.remove("hidden");
 
- let snap=await getDoc(doc(dbCloud,"users",userId));
- if(snap.exists()) db=snap.data().data;
+ try{
+  let snap=await getDoc(doc(dbCloud,"users",userId));
+  if(snap.exists()) db=snap.data().data;
+ }catch(e){
+  console.log("Error cargando datos",e);
+ }
 
  render();
 }
 
-// 💾 GUARDAR
+// 💾 SAVE
 async function save(){
  await setDoc(doc(dbCloud,"users",userId),{data:db});
 }
@@ -162,7 +168,7 @@ window.logout=()=>{
 }
 
 // NAV
-window.nav=x=>{
+window.nav=(x)=>{
  document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
  document.getElementById(x).classList.remove('hidden');
 }
@@ -178,7 +184,7 @@ window.addCategory=()=>{
  save();render();
 }
 
-window.addSub=i=>{
+window.addSub=(i)=>{
  let n=prompt("Nombre");
  let v=+prompt("Valor");
  if(!n||isNaN(v))return;
@@ -195,7 +201,7 @@ window.addGasto=()=>{
  save();render();
 }
 
-// EXPORTAR
+// EXPORT
 window.exportCSV=()=>{
  let csv="Tipo,Nombre,Valor\n";
  db.cats.forEach(c=>{
@@ -211,7 +217,7 @@ window.exportCSV=()=>{
  a.click();
 }
 
-// RENDER + GRAFICA
+// RENDER
 let chart;
 
 function render(){
@@ -252,8 +258,6 @@ function render(){
   data:{labels:labels,datasets:[{data:data}]}
  });
 }
-
-const totalEl=document.getElementById('total');
 
 </script>
 
