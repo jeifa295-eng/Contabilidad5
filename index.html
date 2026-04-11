@@ -95,28 +95,40 @@ const auth = getAuth(firebaseApp);
 let userId=null;
 let db={cats:[],gastos:[]};
 
+const errorBox=document.getElementById('error');
 const totalEl=document.getElementById('total');
 
 // LOGIN
 window.loginUser=async()=>{
- let res=await signInWithEmailAndPassword(auth,email.value,pass.value);
- userId=res.user.uid;
+ try{
+  errorBox.textContent="";
+  let res=await signInWithEmailAndPassword(auth,email.value,pass.value);
+  userId=res.user.uid;
+ }catch(e){
+  errorBox.textContent=e.message;
+ }
 }
 
 // REGISTER
 window.registerUser=async()=>{
- let res=await createUserWithEmailAndPassword(auth,email.value,pass.value);
- userId=res.user.uid;
+ try{
+  errorBox.textContent="";
+  let res=await createUserWithEmailAndPassword(auth,email.value,pass.value);
+  userId=res.user.uid;
+ }catch(e){
+  errorBox.textContent=e.message;
+ }
 }
 
 // AUTO LOGIN
-onAuthStateChanged(auth, async (user)=>{
+onAuthStateChanged(auth, async user=>{
  if(user){
   userId=user.uid;
   await startApp();
  }
 });
 
+// START
 async function startApp(){
  document.getElementById("login").style.display="none";
  document.getElementById("mainApp").classList.remove("hidden");
@@ -127,14 +139,16 @@ async function startApp(){
  render();
 }
 
+// SAVE
 async function save(){
  await setDoc(doc(dbCloud,"users",userId),{data:db});
 }
 
+// LOGOUT
 window.logout=()=>{signOut(auth);location.reload();}
 
 // NAV
-window.nav=(x)=>{
+window.nav=x=>{
  document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
  document.getElementById(x).classList.remove('hidden');
 }
@@ -142,14 +156,13 @@ window.nav=(x)=>{
 // FORMATO
 function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
 
-// ➕ CATEGORIA
+// CRUD
 window.addCategory=()=>{
  db.cats.push({name:catName.value,value:+catValor.value||0,subs:[],open:false});
  catName.value='';catValor.value='';
  save();render();
 }
 
-// ➕ SUB
 window.addSub=i=>{
  let n=prompt("Nombre");
  let v=+prompt("Valor");
@@ -158,20 +171,34 @@ window.addSub=i=>{
  save();render();
 }
 
-// 🔽 TOGGLE
 window.toggle=i=>{
  db.cats[i].open=!db.cats[i].open;
  render();
 }
 
-// 💸 GASTOS
 window.addGasto=()=>{
  db.gastos.push({n:gNombre.value,v:+gValor.value});
  gNombre.value='';gValor.value='';
  save();render();
 }
 
-// 📊 RENDER
+// EXPORT
+window.exportCSV=()=>{
+ let csv="Tipo,Nombre,Valor\n";
+ db.cats.forEach(c=>{
+  csv+=`Categoria,${c.name},${c.value}\n`;
+  c.subs.forEach(s=>csv+=`Sub,${s.name},${s.value}\n`);
+ });
+ db.gastos.forEach(g=>csv+=`Gasto,${g.n},${g.v}\n`);
+
+ let blob=new Blob([csv],{type:"text/csv"});
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="datos.csv";
+ a.click();
+}
+
+// RENDER
 let chart;
 
 function render(){
@@ -193,11 +220,15 @@ function render(){
 
   let h=document.createElement('h3');
   h.textContent=`${c.name} (${format(sum)})`;
-  h.style.cursor="pointer";
-  h.onclick=()=>toggle(i);
+
+  let toggleBtn=document.createElement('button');
+  toggleBtn.textContent = c.open ? "🔼" : "🔽";
+  toggleBtn.onclick = ()=>toggle(i);
+  toggleBtn.ontouchstart = ()=>toggle(i);
 
   let add=document.createElement('button');
   add.textContent='➕';
+  add.className='add';
   add.onclick=()=>addSub(i);
 
   let ul=document.createElement('ul');
@@ -209,13 +240,13 @@ function render(){
     ul.appendChild(base);
   }
 
-  c.subs.forEach((s,j)=>{
+  c.subs.forEach(s=>{
     let li=document.createElement('li');
     li.textContent=`${s.name}: ${format(s.value)}`;
     ul.appendChild(li);
   });
 
-  div.append(h,add,ul);
+  div.append(h,toggleBtn,add,ul);
   categories.appendChild(div);
  });
 
@@ -239,5 +270,6 @@ function render(){
 }
 
 </script>
+
 </body>
 </html>
