@@ -11,8 +11,8 @@
 body{margin:0;font-family:-apple-system;background:#0f172a;color:white}
 .header{padding:20px;text-align:center;background:#1e3a8a}
 .card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
-button{padding:8px;border:none;border-radius:10px;margin:5px;cursor:pointer}
-.add{background:#22c55e}.delete{background:#ef4444}
+button{padding:10px;border:none;border-radius:10px;margin:5px;cursor:pointer}
+.add{background:#22c55e}
 input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;background:#334155;color:white}
 .hidden{display:none}
 .bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#020617}
@@ -26,18 +26,16 @@ input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;backgroun
 
 <div class="header">💳 ContaApp PRO</div>
 
-<!-- LOGIN -->
 <div id="login">
 <div class="card">
 <input id="email" placeholder="Correo">
 <input id="pass" type="password" placeholder="Contraseña">
-<button onclick="loginUser()">Entrar</button>
-<button onclick="registerUser()">Registrarse</button>
+<button id="btnLogin">Entrar</button>
+<button id="btnRegister">Registrarse</button>
 <div id="error" class="error"></div>
 </div>
 </div>
 
-<!-- APP -->
 <div id="mainApp" class="hidden">
 
 <div id="home">
@@ -49,7 +47,7 @@ input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;backgroun
 <div class="card">
 <input id="catName" placeholder="Categoría">
 <input id="catValor" type="number" placeholder="Valor">
-<button onclick="addCategory()">Agregar</button>
+<button id="btnAddCat">Agregar</button>
 </div>
 <div id="categories"></div>
 </div>
@@ -58,20 +56,15 @@ input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;backgroun
 <div class="card">
 <input id="gNombre" placeholder="Gasto">
 <input id="gValor" type="number" placeholder="Valor">
-<button onclick="addGasto()">Agregar</button>
+<button id="btnAddGasto">Agregar</button>
 </div>
 <ul id="gList"></ul>
 </div>
 
-<div class="card">
-<button onclick="exportCSV()">📥 Exportar</button>
-<button onclick="logout()">Cerrar sesión</button>
-</div>
-
 <div class="bottom-nav">
-<button onclick="nav('home')">🏠</button>
-<button onclick="nav('cats')">📂</button>
-<button onclick="nav('gastos')">💸</button>
+<button data-nav="home">🏠</button>
+<button data-nav="cats">📂</button>
+<button data-nav="gastos">💸</button>
 </div>
 
 </div>
@@ -80,15 +73,14 @@ input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;backgroun
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-const firebaseConfig={
+const firebaseApp = initializeApp({
  apiKey:"AIzaSyAvSqCwRrpYz58EksurH-L0P1ny_FmYWq8",
  authDomain:"contabilidad-31cc1.firebaseapp.com",
  projectId:"contabilidad-31cc1"
-};
+});
 
-const firebaseApp = initializeApp(firebaseConfig);
 const dbCloud = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 
@@ -99,121 +91,71 @@ const errorBox=document.getElementById('error');
 const totalEl=document.getElementById('total');
 
 // LOGIN
-window.loginUser=async()=>{
+document.getElementById("btnLogin").addEventListener("pointerup", async ()=>{
  try{
-  errorBox.textContent="";
   let res=await signInWithEmailAndPassword(auth,email.value,pass.value);
   userId=res.user.uid;
- }catch(e){
-  errorBox.textContent=e.message;
- }
-}
+ }catch(e){errorBox.textContent=e.message;}
+});
 
 // REGISTER
-window.registerUser=async()=>{
+document.getElementById("btnRegister").addEventListener("pointerup", async ()=>{
  try{
-  errorBox.textContent="";
   let res=await createUserWithEmailAndPassword(auth,email.value,pass.value);
   userId=res.user.uid;
- }catch(e){
-  errorBox.textContent=e.message;
- }
-}
+ }catch(e){errorBox.textContent=e.message;}
+});
 
 // AUTO LOGIN
 onAuthStateChanged(auth, async user=>{
  if(user){
   userId=user.uid;
-  await startApp();
+  document.getElementById("login").style.display="none";
+  document.getElementById("mainApp").classList.remove("hidden");
+
+  let snap=await getDoc(doc(dbCloud,"users",userId));
+  if(snap.exists()) db=snap.data().data;
+
+  render();
  }
 });
 
-// START
-async function startApp(){
- document.getElementById("login").style.display="none";
- document.getElementById("mainApp").classList.remove("hidden");
+// NAV
+document.querySelectorAll("[data-nav]").forEach(btn=>{
+ btn.addEventListener("pointerup",()=>{
+  document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
+  document.getElementById(btn.dataset.nav).classList.remove('hidden');
+ });
+});
 
- let snap=await getDoc(doc(dbCloud,"users",userId));
- if(snap.exists()) db=snap.data().data;
+// ADD CAT
+document.getElementById("btnAddCat").addEventListener("pointerup",()=>{
+ db.cats.push({name:catName.value,value:+catValor.value||0,subs:[],open:false});
+ catName.value='';catValor.value='';
+ save();render();
+});
 
- render();
-}
+// ADD GASTO
+document.getElementById("btnAddGasto").addEventListener("pointerup",()=>{
+ db.gastos.push({n:gNombre.value,v:+gValor.value});
+ gNombre.value='';gValor.value='';
+ save();render();
+});
 
-// SAVE
+function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
+
 async function save(){
  await setDoc(doc(dbCloud,"users",userId),{data:db});
 }
 
-// LOGOUT
-window.logout=()=>{signOut(auth);location.reload();}
-
-// NAV
-window.nav=x=>{
- document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
- document.getElementById(x).classList.remove('hidden');
-}
-
-// FORMATO
-function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
-
-// CRUD
-window.addCategory=()=>{
- db.cats.push({name:catName.value,value:+catValor.value||0,subs:[],open:false});
- catName.value='';catValor.value='';
- save();render();
-}
-
-window.addSub=i=>{
- let n=prompt("Nombre");
- let v=+prompt("Valor");
- if(!n||isNaN(v))return;
- db.cats[i].subs.push({name:n,value:v});
- save();render();
-}
-
-window.toggle=i=>{
- db.cats[i].open=!db.cats[i].open;
- render();
-}
-
-window.addGasto=()=>{
- db.gastos.push({n:gNombre.value,v:+gValor.value});
- gNombre.value='';gValor.value='';
- save();render();
-}
-
-// EXPORT
-window.exportCSV=()=>{
- let csv="Tipo,Nombre,Valor\n";
- db.cats.forEach(c=>{
-  csv+=`Categoria,${c.name},${c.value}\n`;
-  c.subs.forEach(s=>csv+=`Sub,${s.name},${s.value}\n`);
- });
- db.gastos.forEach(g=>csv+=`Gasto,${g.n},${g.v}\n`);
-
- let blob=new Blob([csv],{type:"text/csv"});
- let a=document.createElement("a");
- a.href=URL.createObjectURL(blob);
- a.download="datos.csv";
- a.click();
-}
-
-// RENDER
-let chart;
-
 function render(){
- let total=0;
- let labels=[],data=[];
-
  categories.innerHTML='';
+ let total=0;
 
  db.cats.forEach((c,i)=>{
   let sum=c.value||0;
   c.subs.forEach(s=>sum+=s.value);
   total+=sum;
-
-  labels.push(c.name);
-  data.push(sum);
 
   let div=document.createElement('div');
   div.className='card';
@@ -221,52 +163,40 @@ function render(){
   let h=document.createElement('h3');
   h.textContent=`${c.name} (${format(sum)})`;
 
-  let toggleBtn=document.createElement('button');
-  toggleBtn.textContent = c.open ? "🔼" : "🔽";
-  toggleBtn.onclick = ()=>toggle(i);
-  toggleBtn.ontouchstart = ()=>toggle(i);
+  let btn=document.createElement('button');
+  btn.textContent=c.open?"🔼":"🔽";
+
+  btn.addEventListener("pointerup",()=>{
+   c.open=!c.open;
+   render();
+  });
 
   let add=document.createElement('button');
   add.textContent='➕';
   add.className='add';
-  add.onclick=()=>addSub(i);
+
+  add.addEventListener("pointerup",()=>{
+   let n=prompt("Nombre");
+   let v=+prompt("Valor");
+   if(!n||isNaN(v))return;
+   c.subs.push({name:n,value:v});
+   save();render();
+  });
 
   let ul=document.createElement('ul');
   ul.style.display=c.open?"block":"none";
 
-  if(c.value){
-    let base=document.createElement('li');
-    base.textContent=`Base: ${format(c.value)}`;
-    ul.appendChild(base);
-  }
-
   c.subs.forEach(s=>{
-    let li=document.createElement('li');
-    li.textContent=`${s.name}: ${format(s.value)}`;
-    ul.appendChild(li);
+   let li=document.createElement('li');
+   li.textContent=`${s.name}: ${format(s.value)}`;
+   ul.appendChild(li);
   });
 
-  div.append(h,toggleBtn,add,ul);
+  div.append(h,btn,add,ul);
   categories.appendChild(div);
  });
 
- let tg=0;
- gList.innerHTML='';
- db.gastos.forEach(g=>{
-  tg+=g.v;
-  let li=document.createElement('li');
-  li.textContent=`${g.n}: ${format(g.v)}`;
-  gList.appendChild(li);
- });
-
- total-=tg;
  totalEl.textContent=format(total);
-
- if(chart)chart.destroy();
- chart=new Chart(document.getElementById('chart'),{
-  type:'doughnut',
-  data:{labels:labels,datasets:[{data:data}]}
- });
 }
 
 </script>
