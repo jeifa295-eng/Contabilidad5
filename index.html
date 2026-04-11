@@ -11,25 +11,10 @@
 body{margin:0;font-family:-apple-system;background:#0f172a;color:white}
 .header{padding:20px;text-align:center;background:#1e3a8a}
 .card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
-button{
-  padding:10px 14px;
-  border:none;
-  border-radius:10px;
-  margin:5px;
-  cursor:pointer;
-  font-size:14px;
-}
+button{padding:10px;border:none;border-radius:10px;margin:5px;cursor:pointer}
 .add{background:#22c55e}
 .delete{background:#ef4444}
-input{
-  padding:10px;
-  margin:5px;
-  width:90%;
-  border-radius:10px;
-  border:none;
-  background:#334155;
-  color:white
-}
+input{padding:10px;margin:5px;width:90%;border-radius:10px;border:none;background:#334155;color:white}
 .hidden{display:none}
 .bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#020617}
 .bottom-nav button{flex:1;background:none;color:#94a3b8;padding:15px}
@@ -183,13 +168,13 @@ function render(){
   h.textContent=`${c.name} (${format(sum)})`;
 
   let toggle=document.createElement('button');
-  toggle.textContent=c.open?"Ocultar":"Ver";
+  toggle.textContent=c.open?"🔼":"🔽";
   toggle.addEventListener("pointerup",()=>{
     c.open=!c.open; render();
   });
 
   let add=document.createElement('button');
-  add.textContent='Agregar';
+  add.textContent='➕';
   add.className='add';
   add.addEventListener("pointerup",()=>{
     let n=prompt("Nombre");
@@ -200,7 +185,7 @@ function render(){
   });
 
   let delCat=document.createElement('button');
-  delCat.textContent='Eliminar';
+  delCat.textContent='🗑';
   delCat.className='delete';
   delCat.addEventListener("pointerup",()=>{
     if(confirm("Eliminar categoría?")){
@@ -217,7 +202,7 @@ function render(){
     li.textContent=`${s.name}: ${format(s.value)}`;
 
     let delSub=document.createElement('button');
-    delSub.textContent='Eliminar';
+    delSub.textContent='❌';
     delSub.className='delete';
     delSub.addEventListener("pointerup",()=>{
       c.subs.splice(j,1);
@@ -242,7 +227,7 @@ function render(){
   li.textContent=`${g.n}: ${format(g.v)}`;
 
   let del=document.createElement('button');
-  del.textContent='Eliminar';
+  del.textContent='❌';
   del.className='delete';
   del.addEventListener("pointerup",()=>{
     db.gastos.splice(i,1);
