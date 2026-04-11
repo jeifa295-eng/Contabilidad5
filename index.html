@@ -3,302 +3,217 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ContaApp Pro</title>
+<title>ContaApp Empresa</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-:root{
-  --bg:#0f172a;
-  --card:#1e293b;
-  --primary:#3b82f6;
-  --success:#22c55e;
-  --danger:#ef4444;
-  --text:#f1f5f9;
-  --sub:#94a3b8;
-}
-
-body{margin:0;font-family:-apple-system;background:var(--bg);color:var(--text);}
-
-.header{
-  padding:20px;
-  text-align:center;
-  font-size:22px;
-  font-weight:bold;
-  background:linear-gradient(90deg,#1e3a8a,#2563eb);
-}
-
-.card{
-  background:var(--card);
-  margin:12px;
-  border-radius:18px;
-  padding:15px;
-  box-shadow:0 8px 20px rgba(0,0,0,0.3);
-}
-
-button{
-  border:none;
-  padding:6px 10px;
-  border-radius:10px;
-  margin:3px;
-  cursor:pointer;
-}
-
-button{background:var(--primary);color:white;}
-button.add{background:var(--success);}
-button.delete{background:var(--danger);}
-
-input{
-  padding:8px;
-  border-radius:10px;
-  border:none;
-  margin:5px;
-  width:90%;
-  background:#334155;
-  color:white;
-}
-
-.big{
-  font-size:28px;
-  font-weight:bold;
-  color:#22c55e;
-  transition:0.3s;
-}
-
-li{margin:6px 0;color:var(--sub);}
-
-.bottom-nav{
-  position:fixed;
-  bottom:0;
-  width:100%;
-  display:flex;
-  background:#020617;
-}
-
-.bottom-nav button{
-  flex:1;
-  background:none;
-  color:#94a3b8;
-  padding:15px;
-  font-size:18px;
-}
-
-.bottom-nav button.active{
-  color:white;
-  background:#1e293b;
-}
-
+body{margin:0;font-family:-apple-system;background:#0f172a;color:white}
+.header{padding:20px;text-align:center;background:#1e3a8a}
+.card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
+button{padding:6px 10px;border:none;border-radius:8px;margin:3px}
+.add{background:#22c55e}.delete{background:#ef4444}.edit{background:#f59e0b}
+input{padding:8px;margin:5px;width:90%;border-radius:8px;border:none;background:#334155;color:white}
 .hidden{display:none}
+.bottom-nav{position:fixed;bottom:0;width:100%;display:flex;background:#020617}
+.bottom-nav button{flex:1;background:none;color:#94a3b8;padding:15px}
+.bottom-nav button.active{color:white}
+.big{font-size:28px;color:#22c55e}
 </style>
 </head>
 
 <body>
 
-<div class="header">💳 ContaApp Pro</div>
+<div class="header">💳 ContaApp Empresa</div>
+
+<!-- LOGIN -->
+<div id="login">
+<div class="card">
+<input id="email" placeholder="Correo">
+<input id="pass" type="password" placeholder="Contraseña">
+<button onclick="login()">Entrar</button>
+<button onclick="register()">Registrarse</button>
+</div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
 
 <div id="home">
-  <div class="card">
-    <div class="big" id="total">$ 0</div>
-  </div>
+<div class="card"><div id="total" class="big">$0</div></div>
+<div class="card"><canvas id="chart"></canvas></div>
 </div>
 
 <div id="cats" class="hidden">
-  <div class="card">
-    <input id="catName" placeholder="Categoría (ej: Banco)">
-    <input id="catValor" type="number" placeholder="Valor">
-    <button onclick="addCategory()">Agregar</button>
-  </div>
-  <div id="categories"></div>
+<div class="card">
+<input id="catName" placeholder="Categoría">
+<input id="catValor" type="number" placeholder="Valor">
+<button onclick="addCategory()">Agregar</button>
+</div>
+<div id="categories"></div>
 </div>
 
 <div id="gastos" class="hidden">
-  <div class="card">
-    <input id="gNombre" placeholder="Gasto">
-    <input id="gValor" type="number" placeholder="Valor">
-    <button onclick="addGasto()">Agregar</button>
-  </div>
-  <ul id="gList"></ul>
+<div class="card">
+<input id="gNombre"><input id="gValor" type="number">
+<button onclick="addGasto()">Agregar</button>
+</div>
+<ul id="gList"></ul>
+</div>
+
+<div class="card">
+<button onclick="exportCSV()">📥 Exportar</button>
 </div>
 
 <div class="bottom-nav">
-  <button onclick="nav('home',this)">🏠</button>
-  <button onclick="nav('cats',this)">📂</button>
-  <button onclick="nav('gastos',this)">💸</button>
+<button onclick="nav('home',this)">🏠</button>
+<button onclick="nav('cats',this)">📂</button>
+<button onclick="nav('gastos',this)">💸</button>
+</div>
+
 </div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAvSqCwRrpYz58EksurH-L0P1ny_FmYWq8",
-  authDomain: "contabilidad-31cc1.firebaseapp.com",
-  projectId: "contabilidad-31cc1",
-  storageBucket: "contabilidad-31cc1.firebasestorage.app",
-  messagingSenderId: "286247305253",
-  appId: "1:286247305253:web:264fb563aa930478573fcc"
+const firebaseConfig={
+ apiKey:"AIzaSyAvSqCwRrpYz58EksurH-L0P1ny_FmYWq8",
+ authDomain:"contabilidad-31cc1.firebaseapp.com",
+ projectId:"contabilidad-31cc1"
 };
 
-const app = initializeApp(firebaseConfig);
-const dbCloud = getFirestore(app);
+const app=initializeApp(firebaseConfig);
+const dbCloud=getFirestore(app);
+const auth=getAuth(app);
 
-function formatCOP(num){
-  return '$ ' + (num||0).toLocaleString('es-CO');
-}
-
+let userId=null;
 let db={cats:[],gastos:[]};
 
-async function loadCloud(){
-  const snap=await getDoc(doc(dbCloud,"conta","data"));
-  if(snap.exists()) db=snap.data().data;
+// LOGIN
+window.login=async()=>{
+ let e=email.value,p=pass.value;
+ let u=await signInWithEmailAndPassword(auth,e,p);
+ userId=u.user.uid;
+ start();
 }
 
+window.register=async()=>{
+ let e=email.value,p=pass.value;
+ let u=await createUserWithEmailAndPassword(auth,e,p);
+ userId=u.user.uid;
+ start();
+}
+
+// INICIO APP
+async function start(){
+ login.style.display="none";
+ app.classList.remove("hidden");
+
+ let snap=await getDoc(doc(dbCloud,"users",userId));
+ if(snap.exists()) db=snap.data().data;
+
+ render();
+}
+
+// SAVE
 async function save(){
-  await setDoc(doc(dbCloud,"conta","data"),{data:db});
+ await setDoc(doc(dbCloud,"users",userId),{data:db});
 }
 
 // NAV
-window.nav=function(x,btn){
-  document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
-  document.getElementById(x).classList.remove('hidden');
-
-  document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+window.nav=(x,b)=>{
+ document.querySelectorAll('#home,#cats,#gastos').forEach(d=>d.classList.add('hidden'));
+ document.getElementById(x).classList.remove('hidden');
 }
 
-// ICONOS AUTOMÁTICOS
-function icono(nombre){
-  nombre=nombre.toLowerCase();
-  if(nombre.includes("banco")) return "🏦";
-  if(nombre.includes("efectivo")) return "💵";
-  if(nombre.includes("crypto")) return "🪙";
-  if(nombre.includes("ahorro")) return "💰";
-  return "📁";
+// FORMAT
+function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
+
+// CRUD
+window.addCategory=()=>{
+ db.cats.push({name:catName.value,value:+catValor.value||0,subs:[]});
+ catName.value='';catValor.value='';
+ save();render();
 }
 
-// CATEGORIA
-window.addCategory=function(){
-  let n=catName.value;
-  let v=parseFloat(catValor.value)||0;
-  if(!n) return;
-
-  db.cats.push({name:n,value:v,subs:[],open:false});
-  catName.value='';catValor.value='';
-  save();render(true);
+window.addSub=i=>{
+ let n=prompt("Nombre");
+ let v=+prompt("Valor");
+ db.cats[i].subs.push({name:n,value:v});
+ save();render();
 }
 
-// SUB
-window.addSub=function(i){
-  let n=prompt("Nombre");
-  let v=parseFloat(prompt("Valor"));
-  if(!n||isNaN(v)) return;
-  db.cats[i].subs.push({name:n,value:v});
-  save();render(true);
+window.addGasto=()=>{
+ db.gastos.push({n:gNombre.value,v:+gValor.value});
+ gNombre.value='';gValor.value='';
+ save();render();
 }
 
-// TOGGLE
-window.toggle=function(i){
-  db.cats[i].open=!db.cats[i].open;
-  render();
+// EXPORTAR
+window.exportCSV=()=>{
+ let csv="Tipo,Nombre,Valor\n";
+ db.cats.forEach(c=>{
+   csv+=`Categoria,${c.name},${c.value}\n`;
+   c.subs.forEach(s=>{
+     csv+=`Subcategoria,${s.name},${s.value}\n`;
+   });
+ });
+ db.gastos.forEach(g=>{
+   csv+=`Gasto,${g.n},${g.v}\n`;
+ });
+
+ let blob=new Blob([csv],{type:"text/csv"});
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="contabilidad.csv";
+ a.click();
 }
 
-// BORRAR
-window.delCat=i=>{db.cats.splice(i,1);save();render(true);}
-window.delSub=(i,j)=>{db.cats[i].subs.splice(j,1);save();render(true);}
+// RENDER + CHART
+let chart;
 
-// GASTOS
-window.addGasto=function(){
-  let n=gNombre.value;
-  let v=parseFloat(gValor.value);
-  if(!n||isNaN(v)) return;
-  db.gastos.push({n,v});
-  gNombre.value='';gValor.value='';
-  save();render(true);
-}
+function render(){
+ let total=0;
+ let labels=[],data=[];
 
-window.delGasto=i=>{db.gastos.splice(i,1);save();render(true);}
+ categories.innerHTML='';
+ db.cats.forEach((c,i)=>{
+  let sum=c.value||0;
+  c.subs.forEach(s=>sum+=s.value);
+  total+=sum;
 
-// ANIMACION TOTAL
-function animarTotal(el){
-  el.style.transform="scale(1.1)";
-  setTimeout(()=>el.style.transform="scale(1)",200);
-}
+  labels.push(c.name);
+  data.push(sum);
 
-// RENDER
-function render(anim=false){
-  let total=0;
-  categories.innerHTML='';
+  let div=document.createElement('div');
+  div.className='card';
+  div.innerHTML=`${c.name} (${format(sum)}) <button onclick="addSub(${i})">+</button>`;
+  categories.appendChild(div);
+ });
 
-  db.cats.forEach((c,i)=>{
-    let sumSubs=0;
-    c.subs.forEach(s=>sumSubs+=s.value);
+ let tg=0;
+ gList.innerHTML='';
+ db.gastos.forEach(g=>{
+  tg+=g.v;
+  let li=document.createElement('li');
+  li.textContent=`${g.n}: ${format(g.v)}`;
+  gList.appendChild(li);
+ });
 
-    let totalCat=c.value+sumSubs;
-    total+=totalCat;
+ total-=tg;
+ totalEl.textContent=format(total);
 
-    let div=document.createElement('div');
-    div.className='card';
-
-    let h=document.createElement('h3');
-    h.textContent=`${icono(c.name)} ${c.name} (${formatCOP(totalCat)})`;
-    h.onclick=()=>toggle(i);
-
-    let add=document.createElement('button');
-    add.textContent='➕';add.className='add';
-    add.onclick=()=>addSub(i);
-
-    let del=document.createElement('button');
-    del.textContent='🗑';del.className='delete';
-    del.onclick=()=>delCat(i);
-
-    let ul=document.createElement('ul');
-    ul.className=c.open?'':'hidden';
-
-    if(c.value>0){
-      let base=document.createElement('li');
-      base.textContent=`Base: ${formatCOP(c.value)}`;
-      ul.appendChild(base);
-    }
-
-    c.subs.forEach((s,j)=>{
-      let li=document.createElement('li');
-      li.textContent=`${s.name}: ${formatCOP(s.value)}`;
-
-      let d=document.createElement('button');
-      d.textContent='❌';d.className='delete';
-      d.onclick=()=>delSub(i,j);
-
-      li.appendChild(d);
-      ul.appendChild(li);
-    });
-
-    div.append(h,add,del,ul);
-    categories.appendChild(div);
-  });
-
-  let tg=0;
-  gList.innerHTML='';
-  db.gastos.forEach((g,i)=>{
-    tg+=g.v;
-    let li=document.createElement('li');
-    li.textContent=`${g.n}: ${formatCOP(g.v)}`;
-
-    let d=document.createElement('button');
-    d.textContent='❌';d.className='delete';
-    d.onclick=()=>delGasto(i);
-
-    li.appendChild(d);
-    gList.appendChild(li);
-  });
-
-  let final=total-tg;
-  totalEl.textContent=formatCOP(final);
-
-  if(anim) animarTotal(totalEl);
+ if(chart)chart.destroy();
+ chart=new Chart(document.getElementById('chart'),{
+  type:'doughnut',
+  data:{labels:labels,datasets:[{data:data}]}
+ });
 }
 
 const totalEl=document.getElementById('total');
-
-loadCloud().then(()=>render());
 
 </script>
 
