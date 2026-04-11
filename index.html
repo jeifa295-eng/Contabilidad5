@@ -82,58 +82,34 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// 🔥 CONFIG
 const firebaseConfig={
  apiKey:"AIzaSyAvSqCwRrpYz58EksurH-L0P1ny_FmYWq8",
  authDomain:"contabilidad-31cc1.firebaseapp.com",
  projectId:"contabilidad-31cc1"
 };
 
-// 🔥 INIT
 const firebaseApp = initializeApp(firebaseConfig);
 const dbCloud = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 
-// 🔥 VARIABLES
 let userId=null;
 let db={cats:[],gastos:[]};
 
-const errorBox=document.getElementById('error');
 const totalEl=document.getElementById('total');
 
-// 🔐 LOGIN
+// LOGIN
 window.loginUser=async()=>{
- try{
-  errorBox.textContent="";
-  let e=email.value.trim();
-  let p=pass.value.trim();
-  if(!e||!p) throw new Error("Completa los campos");
-
-  let res=await signInWithEmailAndPassword(auth,e,p);
-  userId=res.user.uid;
-
- }catch(err){
-  errorBox.textContent=err.message;
- }
+ let res=await signInWithEmailAndPassword(auth,email.value,pass.value);
+ userId=res.user.uid;
 }
 
-// 🆕 REGISTER
+// REGISTER
 window.registerUser=async()=>{
- try{
-  errorBox.textContent="";
-  let e=email.value.trim();
-  let p=pass.value.trim();
-  if(p.length<6) throw new Error("Mínimo 6 caracteres");
-
-  let res=await createUserWithEmailAndPassword(auth,e,p);
-  userId=res.user.uid;
-
- }catch(err){
-  errorBox.textContent=err.message;
- }
+ let res=await createUserWithEmailAndPassword(auth,email.value,pass.value);
+ userId=res.user.uid;
 }
 
-// 🔁 AUTO LOGIN
+// AUTO LOGIN
 onAuthStateChanged(auth, async (user)=>{
  if(user){
   userId=user.uid;
@@ -141,31 +117,21 @@ onAuthStateChanged(auth, async (user)=>{
  }
 });
 
-// 🚀 START
 async function startApp(){
  document.getElementById("login").style.display="none";
  document.getElementById("mainApp").classList.remove("hidden");
 
- try{
-  let snap=await getDoc(doc(dbCloud,"users",userId));
-  if(snap.exists()) db=snap.data().data;
- }catch(e){
-  console.log("Error cargando datos",e);
- }
+ let snap=await getDoc(doc(dbCloud,"users",userId));
+ if(snap.exists()) db=snap.data().data;
 
  render();
 }
 
-// 💾 SAVE
 async function save(){
  await setDoc(doc(dbCloud,"users",userId),{data:db});
 }
 
-// 🚪 LOGOUT
-window.logout=()=>{
- signOut(auth);
- location.reload();
-}
+window.logout=()=>{signOut(auth);location.reload();}
 
 // NAV
 window.nav=(x)=>{
@@ -173,18 +139,18 @@ window.nav=(x)=>{
  document.getElementById(x).classList.remove('hidden');
 }
 
-// FORMAT
+// FORMATO
 function format(n){return '$ '+(n||0).toLocaleString('es-CO');}
 
-// CRUD
+// ➕ CATEGORIA
 window.addCategory=()=>{
- if(!catName.value)return;
- db.cats.push({name:catName.value,value:+catValor.value||0,subs:[]});
+ db.cats.push({name:catName.value,value:+catValor.value||0,subs:[],open:false});
  catName.value='';catValor.value='';
  save();render();
 }
 
-window.addSub=(i)=>{
+// ➕ SUB
+window.addSub=i=>{
  let n=prompt("Nombre");
  let v=+prompt("Valor");
  if(!n||isNaN(v))return;
@@ -192,32 +158,20 @@ window.addSub=(i)=>{
  save();render();
 }
 
+// 🔽 TOGGLE
+window.toggle=i=>{
+ db.cats[i].open=!db.cats[i].open;
+ render();
+}
+
+// 💸 GASTOS
 window.addGasto=()=>{
- let n=gNombre.value;
- let v=+gValor.value;
- if(!n||isNaN(v))return;
- db.gastos.push({n,v});
+ db.gastos.push({n:gNombre.value,v:+gValor.value});
  gNombre.value='';gValor.value='';
  save();render();
 }
 
-// EXPORT
-window.exportCSV=()=>{
- let csv="Tipo,Nombre,Valor\n";
- db.cats.forEach(c=>{
-  csv+=`Categoria,${c.name},${c.value}\n`;
-  c.subs.forEach(s=>csv+=`Sub,${s.name},${s.value}\n`);
- });
- db.gastos.forEach(g=>csv+=`Gasto,${g.n},${g.v}\n`);
-
- let blob=new Blob([csv],{type:"text/csv"});
- let a=document.createElement("a");
- a.href=URL.createObjectURL(blob);
- a.download="datos.csv";
- a.click();
-}
-
-// RENDER
+// 📊 RENDER
 let chart;
 
 function render(){
@@ -236,7 +190,32 @@ function render(){
 
   let div=document.createElement('div');
   div.className='card';
-  div.innerHTML=`${c.name} (${format(sum)}) <button onclick="addSub(${i})">+</button>`;
+
+  let h=document.createElement('h3');
+  h.textContent=`${c.name} (${format(sum)})`;
+  h.style.cursor="pointer";
+  h.onclick=()=>toggle(i);
+
+  let add=document.createElement('button');
+  add.textContent='➕';
+  add.onclick=()=>addSub(i);
+
+  let ul=document.createElement('ul');
+  ul.style.display=c.open?"block":"none";
+
+  if(c.value){
+    let base=document.createElement('li');
+    base.textContent=`Base: ${format(c.value)}`;
+    ul.appendChild(base);
+  }
+
+  c.subs.forEach((s,j)=>{
+    let li=document.createElement('li');
+    li.textContent=`${s.name}: ${format(s.value)}`;
+    ul.appendChild(li);
+  });
+
+  div.append(h,add,ul);
   categories.appendChild(div);
  });
 
@@ -260,6 +239,5 @@ function render(){
 }
 
 </script>
-
 </body>
 </html>
